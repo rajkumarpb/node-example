@@ -1,46 +1,43 @@
-var express = require('express')
-  , stylus        = require('stylus')
-  , nib           = require('nib');
+const http = require('http');
+const { parse } = require('querystring');
 
-var app = express.createServer(express.logger());
-
-//  Configure general expressjs
- 
-app.configure(function(){
- 
- this
-   .use(express.cookieParser())
-   .use(express.bodyParser())
-   .use(express.errorHandler({dumpException: true, showStatck: true}))
-   .use(express.session({ secret: 'supersecretnijakey'}))
+const server = http.createServer((req, res) => {
+    if (req.method === 'POST') {
+        collectRequestData(req, result => {
+            console.log(result);
+            res.end(`Parsed data belonging to ${result.fname}`);
+        });
+    } 
+    else {
+        res.end(`
+            <!doctype html>
+            <html>
+            <body>
+                <form action="/" method="post">
+                    <input type="text" name="fname" /><br />
+                    <input type="number" name="age" /><br />
+                    <input type="file" name="photo" /><br />
+                    <button>Save</button>
+                </form>
+            </body>
+            </html>
+        `);
+    }
 });
+server.listen(3000);
 
-//  Configure template engine
-
-app.configure(function(){
- this
-   .set('views', __dirname + '/views')
-   .set('view engine', 'jade')
-   .use(stylus.middleware({
-     src: __dirname + '/public',
-     compile: compile
-     }))
-   .use(express.static(__dirname + '/public'))
-});
-
-//  Small compile helper
-
-function compile(str, path){
-  return stylus(str)
-    .set('filename', path)
-    .include(nib.path)
+function collectRequestData(request, callback) {
+    const FORM_URLENCODED = 'application/x-www-form-urlencoded';
+    if(request.headers['content-type'] === FORM_URLENCODED) {
+        let body = '';
+        request.on('data', chunk => {
+            body += chunk.toString();
+        });
+        request.on('end', () => {
+            callback(parse(body));
+        });
+    }
+    else {
+        callback(null);
+    }
 }
-
-app.get('/', function(req, res) {
-  res.render('home');
-});
-
-var port = process.env.PORT || 3000;
-console.log("Listening on " + port);
-
-app.listen(port);
